@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
 const FileUpload = () => {
   const [file, setFile] = useState(null);
-  const [progress, setProgress] = useState('');
   const [transcription, setTranscription] = useState('');
-  const [fileId, setFileId] = useState('');
+  const [error, setError] = useState('');
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
+    setTranscription(''); // Clear previous transcription
+    setError(''); // Clear previous errors
   };
 
   const handleUpload = async () => {
@@ -18,26 +19,18 @@ const FileUpload = () => {
     formData.append('audio', file);
 
     try {
+      // Start the upload and transcription process
       const response = await axios.post('http://localhost:5000/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      setFileId(response.data.fileId);
-
-      // Polling for progress updates
-      const interval = setInterval(async () => {
-        const progressResponse = await axios.get(`http://localhost:5000/api/progress/${fileId}`);
-        setProgress(`Progress: ${progressResponse.data.progress}%`);
-
-        if (progressResponse.data.progress === 100) {
-          clearInterval(interval);
-          setTranscription(response.data.transcription);
-        }
-      }, 1000);
+      setTranscription(response.data.transcription); // Display the transcription
+      console.log(`[${new Date().toISOString()}] Transcription received for: ${file.name}`);
     } catch (err) {
-      console.error('Error uploading file:', err);
+      console.error(`[${new Date().toISOString()}] Error uploading file: ${file.name}`, err.message);
+      setError('Failed to process the file. Please try again.');
     }
   };
 
@@ -46,7 +39,7 @@ const FileUpload = () => {
       <h2>Upload Audio File</h2>
       <input type="file" onChange={handleFileChange} />
       <button onClick={handleUpload}>Upload</button>
-      {progress && <p>{progress}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       {transcription && (
         <div>
           <h3>Transcription:</h3>
